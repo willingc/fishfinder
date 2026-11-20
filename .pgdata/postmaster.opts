@@ -1,1 +1,0 @@
-/opt/homebrew/Cellar/postgresql@19/19.0/bin/postgres "-D" "/Users/willingc/snake-case/fish/.pgdata" "-p" "55432"
