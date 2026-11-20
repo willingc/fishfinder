@@ -32,7 +32,16 @@
 
 _Under construction - generic proof of concept_
 
-## PG-NL2SQL Studio
+Prototyped at Snakecase 2026 event organized by Posit, Marimo, and pyOpenSci.
+NOAA Fisheries is working on centralizing acoustic data into Postgres databases
+for researchers to more easily access annotated data.
+
+This repo provides a proof of concept that:
+- a complex Postgres database can be searched using a natural language prompt
+- a SQL query can be generated from the prompt for later reproducibility
+- results can be displayed within the application
+
+## Proof of Concept
 
 A production-minded PostgreSQL Text-to-SQL application implementing the
 architecture in [`architecture_plan.md`](../artifacts/architecture_plan.md):
@@ -77,7 +86,7 @@ ENUMs** across CRM, Commerce, Billing/Subscriptions, Inventory, Support, and
 Audit domains — exercising `ENUM`, `JSONB`, `TEXT[]`, `INT[]`, `TIMESTAMPTZ`,
 `DATE`, `INTERVAL`, `NUMERIC`, `UUID`, `INET`, `DATERANGE`, and `BYTEA`.
 
-## Quick Start
+## Set up
 
 ### 1. Start & Seed the Local PostgreSQL Demo Database
 
@@ -87,7 +96,7 @@ Audit domains — exercising `ENUM`, `JSONB`, `TEXT[]`, `INT[]`, `TIMESTAMPTZ`,
 ./scripts/setup_local_pg.sh
 ```
 
-**Option B — Docker Compose (PostgreSQL 16):**
+**Option B — Docker Compose (PostgreSQL 16):** (Untested)
 
 ```bash
 docker compose up -d
@@ -99,7 +108,7 @@ docker compose up -d
 ```bash
 uv venv .venv
 source .venv/bin/activate
-uv pip install -e ".[dev]"
+uv pip install -e .
 ```
 
 ### 3. Configure `.env`
@@ -114,9 +123,6 @@ repair).
 ```bash
 uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
+### 5. Navigate in browser
 
-### 5. Run Tests
-
-```bash
-pytest -v
-```
+View `http://127.0.0.1:8000` in the browser.
