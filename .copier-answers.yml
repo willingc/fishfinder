@@ -1,0 +1,13 @@
+# Changes here will be overwritten by Copier; NEVER EDIT MANUALLY
+_commit: 2026.08.14-19-g159a987
+_src_path: gh:scientific-python/cookie
+backend: hatch
+docs: sphinx
+email: willingc@gmail.com
+full_name: Carol Willing
+license: MIT
+org: willingc
+project_name: fishfinder
+project_short_description: A great package
+url: https://github.com/willingc/fishfinder
+vcs: true
