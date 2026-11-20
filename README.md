@@ -41,6 +41,10 @@ This repo provides a proof of concept that:
 - a SQL query can be generated from the prompt for later reproducibility
 - results can be displayed within the application
 
+The proof of concept was created using Antigravity prompting and modified
+by the author to customize the repo structure and apply Scientific Python
+best practices.
+
 ## Proof of Concept
 
 A production-minded PostgreSQL Text-to-SQL application implementing the
