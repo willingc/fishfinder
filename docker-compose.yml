@@ -1,0 +1,23 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: pg-nl2sql-demo
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres_dev_password
+      POSTGRES_DB: nl2sql_demo
+      TZ: UTC
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./scripts/seed_demo_db.sql:/docker-entrypoint-initdb.d/01_seed_demo_db.sql:ro
+      - ./scripts/init_roles.sql:/docker-entrypoint-initdb.d/02_init_roles.sql:ro
+      - pg_nl2sql_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d nl2sql_demo"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  pg_nl2sql_data:

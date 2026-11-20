@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PG-NL2SQL Studio — PostgreSQL Text-to-SQL Workbench</title>
+  <meta name="description" content="Query complex PostgreSQL databases in natural language with schema linking, FK graph bridge expansion, sqlglot AST safety validation, and read-only execution." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Top Navigation Bar -->
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+            <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+            <path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5"></path>
+            <path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3"></path>
+          </svg>
+        </div>
+        <div class="brand-copy">
+          <h1>PG-NL2SQL Studio</h1>
+          <p class="brand-sub">PostgreSQL Text-to-SQL &amp; Read-Only Analytical Workbench</p>
+        </div>
+      </div>
+
+      <div class="topbar-meta">
+        <span id="status-badge" class="meta-badge badge-neutral">Connecting…</span>
+        <span id="mode-badge" class="meta-badge badge-neutral">Mode: —</span>
+        <span id="db-badge" class="meta-badge badge-mono">DB: —</span>
+
+        <div class="topbar-divider" aria-hidden="true"></div>
+
+        <button id="btn-refresh-schema" class="btn btn-secondary btn-sm" type="button" title="Re-run pg_catalog introspection and profiling">
+          <svg class="icon icon-refresh" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12a9 9 0 1 1-2.64-6.36"></path>
+            <polyline points="21 3 21 9 15 9"></polyline>
+          </svg>
+          <span>Refresh</span>
+        </button>
+
+        <button id="btn-theme-toggle" class="btn btn-icon btn-sm" type="button" title="Toggle light / dark theme" aria-label="Toggle color theme">
+          <svg id="icon-sun" class="hidden" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="4"></circle>
+            <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+          </svg>
+          <svg id="icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path>
+          </svg>
+        </button>
+
+        <a id="btn-download-zip" class="btn btn-primary btn-sm" href="/api/download-bundle" download="pg-nl2sql.zip" title="Download clean project folder and artifacts as pg-nl2sql.zip">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>Download .zip</span>
+        </a>
+      </div>
+    </header>
+
+    <!-- Main Split Layout -->
+    <div class="workspace">
+      <!-- Left Sidebar: Schema Explorer -->
+      <aside class="sidebar" aria-label="Schema Explorer">
+        <div class="sidebar-header">
+          <div class="sidebar-title-row">
+            <h2>Schema Catalog</h2>
+            <span id="schema-count" class="count-chip">0</span>
+          </div>
+
+          <div class="search-field">
+            <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input
+              id="schema-search"
+              class="search-input"
+              type="search"
+              placeholder="Search tables, columns, JSONB…"
+              autocomplete="off"
+            />
+          </div>
+
+          <div class="segmented-tabs" role="tablist" aria-label="Filter schema objects">
+            <button type="button" class="seg-tab active" data-filter="all" role="tab" aria-selected="true">All</button>
+            <button type="button" class="seg-tab" data-filter="table" role="tab" aria-selected="false">Tables</button>
+            <button type="button" class="seg-tab" data-filter="view" role="tab" aria-selected="false">Views</button>
+          </div>
+        </div>
+
+        <div id="schema-tree" class="schema-tree">
+          <div class="empty-hint">Introspecting PostgreSQL catalog…</div>
+        </div>
+      </aside>
+
+      <!-- Primary Workspace -->
+      <main class="main-panel">
+        <!-- Prompt Composer -->
+        <section class="panel composer-panel" aria-label="Natural Language Prompt">
+          <div class="composer-header">
+            <div class="composer-title-wrap">
+              <label for="prompt-input" class="section-label">Natural Language Query</label>
+              <span class="shortcut-hint">Press <kbd>⌘</kbd>+<kbd>↵</kbd> to run</span>
+            </div>
+            <div class="composer-controls">
+              <label class="limit-control" for="max-rows-select">
+                <span>Row cap</span>
+                <select id="max-rows-select">
+                  <option value="50">50</option>
+                  <option value="200" selected>200</option>
+                  <option value="500">500</option>
+                  <option value="1000">1,000</option>
+                </select>
+              </label>
+              <button id="btn-clear-chat" class="btn btn-ghost btn-sm" type="button">Clear Context</button>
+            </div>
+          </div>
+
+          <form id="query-form" class="prompt-form">
+            <textarea
+              id="prompt-input"
+              rows="2"
+              placeholder="Ask about customers, JSONB profiles, MRR with add-ons, products by tag, overdue invoices, or SLA tickets…"
+              required
+            ></textarea>
+            <button id="btn-ask" class="btn btn-primary btn-run-prompt" type="submit">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <polygon points="6 3 20 12 6 21 6 3"></polygon>
+              </svg>
+              <span>Run Query</span>
+            </button>
+          </form>
+
+          <!-- Progress bar while running -->
+          <div id="query-progress" class="progress-rail hidden" aria-hidden="true">
+            <div class="progress-bar"></div>
+          </div>
+
+          <!-- Curated Starter Query Strip -->
+          <div class="starter-grid" aria-label="Sample queries">
+            <button type="button" class="starter-card" data-prompt="Show active enterprise customers with their organization, region, and onboarding score">
+              <span class="starter-tag">JSONB</span>
+              <span class="starter-title">Active enterprise customers &amp; onboarding score</span>
+            </button>
+            <button type="button" class="starter-card" data-prompt="Which products tagged as SOC 2 Ready generated the most net order revenue?">
+              <span class="starter-tag">Bridge Joins</span>
+              <span class="starter-title">SOC 2 Ready products by net order revenue</span>
+            </button>
+            <button type="button" class="starter-card" data-prompt="List active organizations with total MRR including add-ons and billing period">
+              <span class="starter-tag">DATERANGE</span>
+              <span class="starter-title">Active orgs with total MRR &amp; add-ons</span>
+            </button>
+            <button type="button" class="starter-card" data-prompt="Show open urgent support tickets with SLA target and labels">
+              <span class="starter-tag">INTERVAL</span>
+              <span class="starter-title">Open urgent tickets with SLA &amp; labels</span>
+            </button>
+            <button type="button" class="starter-card" data-prompt="Show overdue invoices with remaining balance and payment methods">
+              <span class="starter-tag">BYTEA</span>
+              <span class="starter-title">Overdue invoices &amp; payment methods</span>
+            </button>
+            <button type="button" class="starter-card" data-prompt="Show monthly net revenue breakdown by region">
+              <span class="starter-tag">Rollup</span>
+              <span class="starter-title">Monthly net revenue breakdown by region</span>
+            </button>
+          </div>
+
+          <div id="chat-history-bar" class="history-bar hidden" aria-label="Follow-up conversation context"></div>
+        </section>
+
+        <!-- Alert / Clarification Banner -->
+        <section id="banner-area" class="banner-area hidden" aria-live="polite"></section>
+
+        <!-- SQL Workspace Panel -->
+        <section class="panel sql-panel" aria-label="Generated PostgreSQL Query">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <h3>PostgreSQL Query</h3>
+              <span id="sql-meta" class="muted-note">Editable · AST-validated read-only SELECT</span>
+            </div>
+            <div class="panel-actions">
+              <button id="btn-copy-sql" class="btn btn-secondary btn-sm" type="button" disabled>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                <span>Copy SQL</span>
+              </button>
+              <button id="btn-run-sql" class="btn btn-primary btn-sm" type="button" disabled>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <polygon points="6 3 20 12 6 21 6 3"></polygon>
+                </svg>
+                <span>Execute SQL</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Syntax-Highlighted Live Editable SQL Surface -->
+          <div class="code-workbench">
+            <div id="sql-gutter" class="code-gutter" aria-hidden="true">1</div>
+            <div class="code-editor-stack">
+              <pre id="sql-highlight" class="code-highlight" aria-hidden="true"></pre>
+              <textarea
+                id="sql-editor"
+                class="code-textarea"
+                rows="8"
+                spellcheck="false"
+                autocapitalize="off"
+                autocomplete="off"
+                autocorrect="off"
+                placeholder="-- Generated PostgreSQL query appears here.&#10;-- You can also edit or paste any SELECT query to run through the sqlglot safety gate."
+              ></textarea>
+            </div>
+          </div>
+
+          <!-- Plain-English Explanation & Assumptions -->
+          <div id="explanation-bar" class="explanation-bar hidden">
+            <p id="explanation-text"></p>
+            <ul id="assumptions-list" class="assumptions-list"></ul>
+          </div>
+
+          <!-- Compact Visual Pipeline Stepper + Expandable Trace Details -->
+          <div class="trace-footer">
+            <button id="btn-toggle-trace" class="trace-toggle" type="button" aria-expanded="false">
+              <div class="trace-toggle-left">
+                <span class="trace-heading">Pipeline Trace</span>
+                <div id="pipeline-stepper" class="pipeline-stepper">
+                  <span class="step-pill">1. Linker</span>
+                  <span class="step-pill">2. FK Graph</span>
+                  <span class="step-pill">3. SQL Gen</span>
+                  <span class="step-pill">4. AST Gate</span>
+                  <span class="step-pill">5. Postgres</span>
+                </div>
+              </div>
+              <div class="trace-toggle-right">
+                <span id="trace-summary" class="muted-note">Inspect tables &amp; EXPLAIN cost</span>
+                <svg class="chevron" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </div>
+            </button>
+            <div id="trace-body" class="trace-body hidden"></div>
+          </div>
+        </section>
+
+        <!-- Results Grid Panel -->
+        <section class="panel results-panel" aria-label="Query Results">
+          <div class="panel-header">
+            <div class="panel-title-group">
+              <h3>Results</h3>
+              <span id="results-meta" class="muted-note">No query executed yet</span>
+            </div>
+            <div class="panel-actions">
+              <div id="results-filter-wrap" class="results-filter hidden">
+                <input
+                  id="results-filter-input"
+                  type="search"
+                  placeholder="Filter rows…"
+                  autocomplete="off"
+                />
+              </div>
+              <button id="btn-export-csv" class="btn btn-secondary btn-sm" type="button" disabled>Export CSV</button>
+              <button id="btn-export-json" class="btn btn-secondary btn-sm" type="button" disabled>Export JSON</button>
+            </div>
+          </div>
+
+          <!-- Quick Result Summary Strip (populated dynamically when results arrive) -->
+          <div id="results-summary-bar" class="summary-strip hidden"></div>
+
+          <div id="results-container" class="results-container">
+            <div class="empty-state">
+              <div class="empty-state-icon" aria-hidden="true">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                  <line x1="3" y1="9" x2="21" y2="9"></line>
+                  <line x1="9" y1="21" x2="9" y2="9"></line>
+                </svg>
+              </div>
+              <p class="empty-state-title">Ready to query <code>nl2sql_demo</code></p>
+              <p class="muted-note">Choose a starter query above or ask a question in plain English. Click column headers to sort, or click any JSONB badge to inspect nested payloads.</p>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- Slide-Over JSONB Inspector Drawer -->
+  <div id="json-modal" class="drawer hidden" role="dialog" aria-modal="true" aria-labelledby="json-modal-title">
+    <div class="drawer-backdrop" id="json-modal-backdrop"></div>
+    <div class="drawer-panel">
+      <div class="drawer-header">
+        <div>
+          <h3 id="json-modal-title">JSONB Inspector</h3>
+          <p class="muted-note">Structured PostgreSQL JSONB payload</p>
+        </div>
+        <div class="drawer-actions">
+          <button id="btn-copy-json" class="btn btn-secondary btn-sm" type="button">Copy JSON</button>
+          <button id="btn-close-modal" class="btn btn-ghost btn-sm" type="button" aria-label="Close JSONB inspector">Close</button>
+        </div>
+      </div>
+      <pre id="json-modal-content" class="json-pre"></pre>
+    </div>
+  </div>
+
+  <!-- Toast Stack -->
+  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

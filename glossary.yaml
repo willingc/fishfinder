@@ -1,0 +1,127 @@
+# Business Semantic Layer & Verified Few-Shot Examples for PG-NL2SQL
+# Loaded into the Schema Catalog and injected selectively during Stage 1 & Stage 2.
+
+terms:
+  - name: active customer
+    definition: "A customer contact whose account is active and not soft-deleted."
+    sql_expression: "customers.status = 'active' AND customers.deleted_at IS NULL"
+    tables: [customers]
+
+  - name: active organization
+    definition: "An organization with active status and no soft-deletion timestamp."
+    sql_expression: "organizations.status = 'active' AND organizations.deleted_at IS NULL"
+    tables: [organizations]
+
+  - name: net order revenue
+    definition: "Total USD value of orders excluding cancelled and refunded orders."
+    sql_expression: "orders.status NOT IN ('cancelled', 'refunded')"
+    tables: [orders]
+
+  - name: enterprise tier
+    definition: "Customers or organizations tagged as enterprise in JSONB metadata."
+    sql_expression: "customers.profile_meta->>'tier' = 'enterprise'"
+    tables: [customers, organizations]
+
+  - name: total mrr
+    definition: "Monthly recurring revenue combining base subscription MRR and active add-ons."
+    sql_expression: "Use view v_active_customer_mrr.total_mrr_usd or sum subscriptions.mrr_usd + subscription_addons * addons.monthly_price_usd"
+    tables: [subscriptions, subscription_addons, addons, v_active_customer_mrr]
+
+  - name: overdue invoice
+    definition: "An invoice with remaining balance past its due_date."
+    sql_expression: "invoices.amount_paid < invoices.amount_due AND invoices.due_date < CURRENT_DATE"
+    tables: [invoices]
+
+column_overrides:
+  customers.profile_meta: "Nested JSONB with keys: tier ('enterprise'|'growth'|'starter'), role (text), preferences.newsletter (bool), preferences.locale (text), onboarding.completed (bool), onboarding.score (int)."
+  organizations.settings: "Nested JSONB with keys: tier, sso_enabled (bool), compliance (jsonb array of strings like 'SOC2', 'HIPAA', 'GDPR'), billing_contact.net_terms (int)."
+  orders.shipping_address: "JSONB object with city, state, country, postal_code."
+  subscriptions.billing_period: "PostgreSQL daterange [start_date, end_date). Use @> CURRENT_DATE to check active coverage."
+
+few_shot_examples:
+  - question: "Show active enterprise customers with their organization name, region, and onboarding score"
+    tables: [customers, organizations, regions]
+    sql: |
+      SELECT
+        c.full_name,
+        c.email,
+        o.name AS organization_name,
+        r.code AS region_code,
+        c.profile_meta->>'tier' AS tier,
+        (c.profile_meta->'onboarding'->>'score')::INT AS onboarding_score,
+        c.tags
+      FROM customers c
+      JOIN organizations o ON o.org_id = c.org_id
+      JOIN regions r ON r.region_id = c.region_id
+      WHERE c.status = 'active'
+        AND c.deleted_at IS NULL
+        AND c.profile_meta->>'tier' = 'enterprise'
+      ORDER BY onboarding_score DESC
+      LIMIT 200
+
+  - question: "Which products tagged as SOC 2 Ready or On-Premises generated the most net order revenue?"
+    tables: [products, product_tags, tags, order_items, orders]
+    sql: |
+      SELECT
+        p.sku,
+        p.name AS product_name,
+        p.category,
+        ARRAY_AGG(DISTINCT t.label ORDER BY t.label) AS product_tags,
+        SUM(oi.quantity) AS units_sold,
+        SUM(oi.quantity * oi.unit_price_usd * (1 - oi.discount_pct / 100.0))::NUMERIC(12, 2) AS net_revenue_usd
+      FROM products p
+      JOIN product_tags pt ON pt.product_id = p.product_id
+      JOIN tags t ON t.tag_id = pt.tag_id
+      JOIN order_items oi ON oi.product_id = p.product_id
+      JOIN orders ord ON ord.order_id = oi.order_id
+      WHERE ord.status NOT IN ('cancelled', 'refunded')
+        AND t.slug IN ('soc2-ready', 'on-prem')
+      GROUP BY p.product_id, p.sku, p.name, p.category
+      ORDER BY net_revenue_usd DESC
+      LIMIT 200
+
+  - question: "List organizations with active subscriptions and their total MRR including add-ons"
+    tables: [organizations, regions, subscriptions, plans, subscription_addons, addons]
+    sql: |
+      SELECT
+        o.name AS organization_name,
+        r.code AS region_code,
+        p.name AS plan_name,
+        s.seats,
+        s.mrr_usd AS base_mrr_usd,
+        COALESCE(SUM(a.monthly_price_usd * sa.quantity), 0)::NUMERIC(12, 2) AS addons_mrr_usd,
+        (s.mrr_usd + COALESCE(SUM(a.monthly_price_usd * sa.quantity), 0))::NUMERIC(12, 2) AS total_mrr_usd,
+        s.billing_period
+      FROM organizations o
+      JOIN regions r ON r.region_id = o.region_id
+      JOIN subscriptions s ON s.org_id = o.org_id
+      JOIN plans p ON p.plan_id = s.plan_id
+      LEFT JOIN subscription_addons sa ON sa.subscription_id = s.subscription_id
+      LEFT JOIN addons a ON a.addon_id = sa.addon_id
+      WHERE o.status = 'active'
+        AND o.deleted_at IS NULL
+        AND s.status = 'active'
+      GROUP BY o.org_id, o.name, r.code, p.name, s.seats, s.mrr_usd, s.billing_period
+      ORDER BY total_mrr_usd DESC
+      LIMIT 200
+
+  - question: "Show open or urgent support tickets with SLA targets and customer details"
+    tables: [support_tickets, customers, organizations]
+    sql: |
+      SELECT
+        st.ticket_number,
+        st.priority,
+        st.status,
+        st.subject,
+        st.labels,
+        st.sla_target,
+        st.resolution_time,
+        c.full_name AS customer_name,
+        o.name AS organization_name,
+        st.created_at
+      FROM support_tickets st
+      JOIN customers c ON c.customer_id = st.customer_id
+      JOIN organizations o ON o.org_id = c.org_id
+      WHERE st.status IN ('open', 'in_progress', 'waiting_customer')
+      ORDER BY st.priority DESC, st.created_at ASC
+      LIMIT 200

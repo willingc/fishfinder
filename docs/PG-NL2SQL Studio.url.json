@@ -1,0 +1,5 @@
+{
+  "url": "http://localhost:8000",
+  "title": "PG-NL2SQL Studio",
+  "description": "Interactive PostgreSQL Text-to-SQL web studio running in Demo Mode (schema explorer, SQL viewer/editor, sortable results, JSONB inspector, and pipeline trace)."
+}
