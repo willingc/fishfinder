@@ -1,13 +1,13 @@
 [build-system]
-requires = ["hatchling>=1.26", "hatch-vcs"]
+requires = ["hatchling>=1.26"]
 build-backend = "hatchling.build"
-
 
 [project]
 name = "fishfinder"
 authors = [
   { name = "Carol Willing", email = "willingc@gmail.com" },
 ]
+version = "0.1.0"
 description = "A great package"
 readme = "README.md"
 license = "MIT"
@@ -29,7 +29,7 @@ classifiers = [
   "Topic :: Scientific/Engineering",
   "Typing :: Typed",
 ]
-dynamic = ["version"]
+
 dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
@@ -48,7 +48,6 @@ Homepage = "https://github.com/willingc/fishfinder"
 Discussions = "https://github.com/willingc/fishfinder/discussions"
 Changelog = "https://github.com/willingc/fishfinder/releases"
 
-
 [dependency-groups]
 test = [
   "pytest >=9",
@@ -66,20 +65,9 @@ docs = [
   "furo>=2023.08.17",
 ]
 
+
 [tool.hatch.build.targets.wheel]
 packages = ["app"]
-
-[tool.hatch]
-build.hooks.vcs.version-file = "src/fishfinder/_version.py"
-version.source = "vcs"
-
-[tool.hatch.envs.default]
-dependency-groups = ["dev"]
-
-[tool.hatch.envs.hatch-test]
-dependency-groups = ["test"]
-env-vars.PYTHONWARNDEFAULTENCODING = "1"
-
 
 [tool.pytest]
 minversion = "9.0"
@@ -93,13 +81,6 @@ testpaths = [
   "tests",
 ]
 
-
-[tool.coverage]
-run.source = ["fishfinder"]
-report.exclude_also = [
-  '\.\.\.',
-  'if typing.TYPE_CHECKING:',
-]
 
 [tool.mypy]
 files = ["src", "tests"]
