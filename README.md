@@ -15,6 +15,8 @@ The proof of concept was created using Antigravity prompting and modified
 by the author to customize the repo structure and apply Scientific Python
 best practices.
 
+![Fishfinder UI](./docs/fishfinder-ui.png)
+
 ## Proof of Concept
 
 A production-minded PostgreSQL Text-to-SQL application implementing the
